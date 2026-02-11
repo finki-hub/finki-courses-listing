@@ -22,6 +22,11 @@ import { CourseDetailDialog } from './course-detail-dialog';
 type CourseTableProps = {
   courses: CourseRaw[];
 };
+type CourseTableRowProps = {
+  course: CourseRaw;
+  onClick: () => void;
+};
+
 type SortColumn = 'accreditation' | 'name' | 'tags';
 
 type SortDirection = 'asc' | 'desc';
@@ -32,6 +37,43 @@ const getAccLabel = (course: CourseRaw): string => {
   if (getAccreditationInfo(course, '2018')) labels.push('2018');
   return labels.join(', ');
 };
+
+const hasChannel = (course: CourseRaw): boolean =>
+  course['2023-channel'] === '1' ||
+  course['2018-channel'] === '1' ||
+  course.channel === 'TRUE';
+
+const CourseTableRow = (props: CourseTableRowProps) => (
+  <TableRow
+    class="cursor-pointer"
+    onClick={props.onClick}
+  >
+    <TableCell class="font-medium">{props.course.name}</TableCell>
+    <TableCell>{getAccLabel(props.course)}</TableCell>
+    <TableCell class="text-center">
+      <Show when={hasChannel(props.course)}>
+        <svg
+          class="text-primary mx-auto h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          viewBox="0 0 24 24"
+        >
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </Show>
+    </TableCell>
+    <TableCell>
+      <div class="flex flex-wrap gap-1">
+        <For each={getCourseTags(props.course)}>
+          {(tag) => (
+            <Badge variant="secondary">{TAG_TRANSLATIONS[tag] ?? tag}</Badge>
+          )}
+        </For>
+      </div>
+    </TableCell>
+  </TableRow>
+);
 
 export const CourseTable = (props: CourseTableProps) => {
   const [selectedCourse, setSelectedCourse] = createSignal<CourseRaw | null>(
@@ -159,6 +201,7 @@ export const CourseTable = (props: CourseTableProps) => {
               >
                 Акредитација{sortIndicator('accreditation')}
               </TableHead>
+              <TableHead class="w-20 text-center">Канал (Дискорд)</TableHead>
               <TableHead
                 class="cursor-pointer select-none"
                 onClick={() => {
@@ -175,7 +218,7 @@ export const CourseTable = (props: CourseTableProps) => {
                 <TableRow>
                   <TableCell
                     class="h-24 text-center"
-                    colSpan={3}
+                    colSpan={4}
                   >
                     Нема резултати.
                   </TableCell>
@@ -185,26 +228,12 @@ export const CourseTable = (props: CourseTableProps) => {
             >
               <For each={filteredCourses()}>
                 {(course) => (
-                  <TableRow
-                    class="cursor-pointer"
+                  <CourseTableRow
+                    course={course}
                     onClick={() => {
                       handleRowClick(course);
                     }}
-                  >
-                    <TableCell class="font-medium">{course.name}</TableCell>
-                    <TableCell>{getAccLabel(course)}</TableCell>
-                    <TableCell>
-                      <div class="flex flex-wrap gap-1">
-                        <For each={getCourseTags(course)}>
-                          {(tag) => (
-                            <Badge variant="secondary">
-                              {TAG_TRANSLATIONS[tag] ?? tag}
-                            </Badge>
-                          )}
-                        </For>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  />
                 )}
               </For>
             </Show>
