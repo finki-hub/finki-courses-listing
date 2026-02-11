@@ -116,6 +116,8 @@ export const CourseTable = (props: CourseTableProps) => {
       ? props.courses.filter(
           (c) =>
             c.name.toLowerCase().includes(term) ||
+            (c['2023-name']?.toLowerCase().includes(term) ?? false) ||
+            (c['2018-name']?.toLowerCase().includes(term) ?? false) ||
             c.professors.toLowerCase().includes(term) ||
             (c.assistants?.toLowerCase().includes(term) ?? false),
         )
