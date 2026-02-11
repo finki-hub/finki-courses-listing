@@ -1,6 +1,7 @@
 import { Match, Switch } from 'solid-js';
 
 import { CourseTable } from '@/components/course-table';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { useCourses } from '@/data/use-courses';
 
 const App = () => {
@@ -8,13 +9,14 @@ const App = () => {
 
   return (
     <div class="container mx-auto py-8">
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold tracking-tight">
-          ФИНКИ — Преглед на предмети
-        </h1>
-        <p class="text-muted-foreground mt-1">
-          Преглед на сите предмети, запишувања и акредитации
-        </p>
+      <div class="mb-8 flex items-start justify-between">
+        <div>
+          <h1 class="text-3xl font-bold tracking-tight">ФИНКИ ПРЕДМЕТИ</h1>
+          <p class="text-muted-foreground mt-1">
+            Преглед на сите предмети, запишувања и акредитации
+          </p>
+        </div>
+        <ThemeToggle />
       </div>
 
       <Switch>
