@@ -17,7 +17,7 @@ const App = () => {
         <div>
           <h1 class="text-3xl font-bold tracking-tight">ФИНКИ ПРЕДМЕТИ</h1>
           <p class="text-muted-foreground mt-1">
-            Преглед на сите предмети, запишувања и акредитации
+            Преглед на сите предмети, смерови и акредитации
           </p>
         </div>
         <div class="flex items-center gap-2">

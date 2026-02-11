@@ -18,6 +18,13 @@ export const courseSchema = z.object({
   '2018-name': optionalString,
   '2018-prerequisite': optionalString,
   '2018-semester': optionalString,
+  '2018-state-imb': optionalString,
+  '2018-state-ke': optionalString,
+  '2018-state-ki': optionalString,
+  '2018-state-kn': optionalString,
+  '2018-state-pit': optionalString,
+  '2018-state-seis': optionalString,
+  '2018-state-siis': optionalString,
   '2018/2019': optionalString,
   '2019/2020': optionalString,
   '2020/2021': optionalString,
@@ -31,6 +38,14 @@ export const courseSchema = z.object({
   '2023-name': optionalString,
   '2023-prerequisite': optionalString,
   '2023-semester': optionalString,
+  '2023-state-ie': optionalString,
+  '2023-state-imb': optionalString,
+  '2023-state-ki': optionalString,
+  '2023-state-kn': optionalString,
+  '2023-state-pit': optionalString,
+  '2023-state-seis': optionalString,
+  '2023-state-siis': optionalString,
+  '2023-state-ssp': optionalString,
   '2023/2024': optionalString,
   '2024/2025': optionalString,
   '2025/2026': optionalString,
@@ -134,3 +149,51 @@ export const getCourseCredits = (
   }
   return DEFAULT_CREDITS;
 };
+
+// ---------------------------------------------------------------------------
+// Study programs
+// ---------------------------------------------------------------------------
+
+export const STUDY_PROGRAMS_2018 = [
+  'imb',
+  'ke',
+  'ki',
+  'kn',
+  'pit',
+  'seis',
+  'siis',
+] as const;
+
+export const STUDY_PROGRAMS_2023 = [
+  'ie',
+  'imb',
+  'ki',
+  'kn',
+  'pit',
+  'seis',
+  'siis',
+  'ssp',
+] as const;
+
+export type StudyProgram = StudyProgram2018 | StudyProgram2023;
+export type StudyProgram2018 = (typeof STUDY_PROGRAMS_2018)[number];
+export type StudyProgram2023 = (typeof STUDY_PROGRAMS_2023)[number];
+
+export const STUDY_PROGRAM_LABELS: Record<string, string> = {
+  ie: 'ИЕ',
+  imb: 'ИМБ',
+  ke: 'КЕ',
+  ki: 'КИ',
+  kn: 'КН',
+  pit: 'ПИТ',
+  seis: 'СЕИС',
+  siis: 'СИИС',
+  ssp: 'ССП',
+};
+
+export const getCourseStateForProgram = (
+  course: CourseRaw,
+  accreditation: '2018' | '2023',
+  program: string,
+): string | undefined =>
+  course[`${accreditation}-state-${program}` as keyof CourseRaw];

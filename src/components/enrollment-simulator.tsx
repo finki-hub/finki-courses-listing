@@ -27,6 +27,10 @@ import {
   type CourseRaw,
   getAccreditationInfo,
   getCourseCredits,
+  getCourseStateForProgram,
+  STUDY_PROGRAM_LABELS,
+  STUDY_PROGRAMS_2018,
+  STUDY_PROGRAMS_2023,
 } from '@/types/course';
 
 // ---------------------------------------------------------------------------
@@ -45,6 +49,7 @@ type SimulatorCourse = {
   name: string;
   prereqNode: PrereqNode;
   prerequisite: string | undefined;
+  programState: string | undefined;
   raw: CourseRaw;
   semester: number;
 };
@@ -181,76 +186,127 @@ type SimulatorToolbarProps = {
   accreditation: Accreditation;
   onReset: () => void;
   onSwitchAccreditation: (acc: Accreditation) => void;
+  onSwitchProgram: (p: string) => void;
   onToggleFilter: () => void;
+  program: string;
   showOnlyEnabled: boolean;
   totalCredits: number;
 };
 
-const SimulatorToolbar = (props: SimulatorToolbarProps) => (
-  <div class="flex flex-wrap items-center gap-4">
-    <div
-      class="inline-flex rounded-md border"
-      role="group"
-    >
+const SimulatorToolbar = (props: SimulatorToolbarProps) => {
+  const programs = () =>
+    props.accreditation === '2023' ? STUDY_PROGRAMS_2023 : STUDY_PROGRAMS_2018;
+
+  return (
+    <div class="flex flex-wrap items-center gap-4">
+      <div
+        class="inline-flex rounded-md border"
+        role="group"
+      >
+        <button
+          class={`rounded-l-md px-4 py-2 text-sm font-medium transition-colors ${
+            props.accreditation === '2023'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted'
+          }`}
+          onClick={() => {
+            props.onSwitchAccreditation('2023');
+          }}
+          type="button"
+        >
+          Акредитација 2023
+        </button>
+        <button
+          class={`rounded-r-md px-4 py-2 text-sm font-medium transition-colors ${
+            props.accreditation === '2018'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted'
+          }`}
+          onClick={() => {
+            props.onSwitchAccreditation('2018');
+          }}
+          type="button"
+        >
+          Акредитација 2018
+        </button>
+      </div>
+
+      <div
+        class="inline-flex rounded-md border"
+        role="group"
+      >
+        <For each={[...programs()]}>
+          {(p, i) => (
+            <button
+              class={`px-3 py-2 text-sm font-medium transition-colors ${
+                i() === 0 ? 'rounded-l-md' : ''
+              } ${i() === programs().length - 1 ? 'rounded-r-md' : ''} ${
+                props.program === p
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-muted'
+              }`}
+              onClick={() => {
+                props.onSwitchProgram(p);
+              }}
+              type="button"
+            >
+              {STUDY_PROGRAM_LABELS[p] ?? p}
+            </button>
+          )}
+        </For>
+      </div>
+
+      <div class="text-sm">
+        Вкупно кредити: <span class="font-bold">{props.totalCredits}</span>
+        <Show when={props.totalCredits >= 180}>
+          <span class="text-green-600 ml-2 font-medium">
+            (≥ 180 — сите предмети се отклучени)
+          </span>
+        </Show>
+      </div>
+
       <button
-        class={`rounded-l-md px-4 py-2 text-sm font-medium transition-colors ${
-          props.accreditation === '2023'
-            ? 'bg-primary text-primary-foreground'
-            : 'hover:bg-muted'
-        }`}
+        class="text-destructive hover:bg-destructive/10 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
         onClick={() => {
-          props.onSwitchAccreditation('2023');
+          props.onReset();
         }}
         type="button"
       >
-        Акредитација 2023
+        Ресетирај
       </button>
-      <button
-        class={`rounded-r-md px-4 py-2 text-sm font-medium transition-colors ${
-          props.accreditation === '2018'
-            ? 'bg-primary text-primary-foreground'
-            : 'hover:bg-muted'
-        }`}
-        onClick={() => {
-          props.onSwitchAccreditation('2018');
-        }}
-        type="button"
-      >
-        Акредитација 2018
-      </button>
+
+      <label class="flex cursor-pointer items-center gap-2 text-sm">
+        <input
+          checked={props.showOnlyEnabled}
+          class="accent-primary h-4 w-4"
+          onChange={() => {
+            props.onToggleFilter();
+          }}
+          type="checkbox"
+        />
+        Само достапни
+      </label>
     </div>
+  );
+};
 
-    <div class="text-sm">
-      Вкупно кредити: <span class="font-bold">{props.totalCredits}</span>
-      <Show when={props.totalCredits >= 180}>
-        <span class="text-green-600 ml-2 font-medium">
-          (≥ 180 — сите предмети се отклучени)
-        </span>
-      </Show>
+type CreditLimitWarningProps = {
+  levelLimits: Record<number, number>;
+  levels: number[];
+};
+
+const CreditLimitWarning = (props: CreditLimitWarningProps) => (
+  <Show when={props.levels.length > 0}>
+    <div class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+      ⚠ Надминати се максимално дозволените запишани кредити за{' '}
+      {props.levels
+        .map(
+          (lvl) =>
+            `L${String(lvl)} (макс. ${String(props.levelLimits[lvl] ?? 0)})`,
+        )
+        .join(', ')}
     </div>
-
-    <button
-      class="text-destructive hover:bg-destructive/10 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-      onClick={() => {
-        props.onReset();
-      }}
-      type="button"
-    >
-      Ресетирај
-    </button>
-
-    <label class="flex cursor-pointer items-center gap-2 text-sm">
-      <input
-        checked={props.showOnlyEnabled}
-        class="accent-primary h-4 w-4"
-        onChange={() => {
-          props.onToggleFilter();
-        }}
-        type="checkbox"
-      />
-      Само достапни
-    </label>
-  </div>
+  </Show>
 );
 
 // ---------------------------------------------------------------------------
@@ -274,6 +330,14 @@ const computeEnabledMap = (config: {
       if (s[c.name]?.passed && enabled[c.name]) credits += c.credits;
     }
     for (const c of courses) {
+      // Courses with "нема" state bypass prerequisites entirely
+      if (c.programState === 'нема') {
+        if (!enabled[c.name]) {
+          enabled[c.name] = true;
+          changed = true;
+        }
+        continue;
+      }
       const met = isPrerequisiteMet(c.prereqNode, {
         courseInfoMap: infoMap,
         courseSemester: c.semester,
@@ -298,9 +362,11 @@ const computeEnabledMap = (config: {
 const useSimulatorCourses = (
   getCourses: () => CourseRaw[],
   getAccreditation: () => Accreditation,
+  getProgram: () => string,
 ) => {
   const simulatorCourses = createMemo<SimulatorCourse[]>(() => {
     const acc = getAccreditation();
+    const prog = getProgram();
     const courses: SimulatorCourse[] = [];
 
     for (const raw of getCourses()) {
@@ -312,6 +378,7 @@ const useSimulatorCourses = (
       const semester = Number.parseInt(info.semester);
 
       const level = info.level ? Number.parseInt(info.level) : 0;
+      const programState = getCourseStateForProgram(raw, acc, prog);
 
       courses.push({
         credits: getCourseCredits(raw, acc),
@@ -319,6 +386,7 @@ const useSimulatorCourses = (
         name,
         prereqNode: { type: 'none' },
         prerequisite: info.prerequisite,
+        programState,
         raw,
         semester,
       });
@@ -360,6 +428,7 @@ const useSimulatorCourses = (
 
 export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   const [accreditation, setAccreditation] = createSignal<Accreditation>('2023');
+  const [program, setProgram] = createSignal<string>(STUDY_PROGRAMS_2023[0]);
   const [statuses, setStatuses] = createSignal<Record<string, CourseStatus>>(
     loadStatuses('2023'),
   );
@@ -369,6 +438,7 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   const { courseInfoMap, parsedCourses } = useSimulatorCourses(
     () => props.courses,
     accreditation,
+    program,
   );
 
   const totalCredits = createMemo(() => {
@@ -382,28 +452,36 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
   const LEVEL_CREDIT_LIMITS: Record<number, number> = { 1: 6, 2: 36 };
 
-  const overLimitSet = createMemo<Set<string>>(() => {
+  const overLimitInfo = createMemo(() => {
     const s = statuses();
-    const creditsPerLevel: Record<number, number> = {};
-    const coursesByLevel: Record<number, SimulatorCourse[]> = {};
+    const electiveCreditsPerLevel: Record<number, number> = {};
+    const electiveCoursesByLevel: Record<number, SimulatorCourse[]> = {};
 
     for (const c of parsedCourses()) {
       if (!s[c.name]?.passed) continue;
-      creditsPerLevel[c.level] = (creditsPerLevel[c.level] ?? 0) + c.credits;
-      (coursesByLevel[c.level] ??= []).push(c);
+      const isRequired = c.programState?.includes('задолжителен') ?? false;
+      if (isRequired) continue;
+      electiveCreditsPerLevel[c.level] =
+        (electiveCreditsPerLevel[c.level] ?? 0) + c.credits;
+      (electiveCoursesByLevel[c.level] ??= []).push(c);
     }
 
-    const result = new Set<string>();
+    const names = new Set<string>();
+    const levels: number[] = [];
     for (const [level, limit] of Object.entries(LEVEL_CREDIT_LIMITS)) {
       const lvl = Number(level);
-      if ((creditsPerLevel[lvl] ?? 0) > limit) {
-        for (const c of coursesByLevel[lvl] ?? []) {
-          result.add(c.name);
+      if ((electiveCreditsPerLevel[lvl] ?? 0) > limit) {
+        levels.push(lvl);
+        for (const c of electiveCoursesByLevel[lvl] ?? []) {
+          names.add(c.name);
         }
       }
     }
-    return result;
+    return { levels, names };
   });
+
+  const overLimitSet = createMemo(() => overLimitInfo().names);
+  const overLimitLevels = createMemo(() => overLimitInfo().levels);
 
   const enabledMap = createMemo(() =>
     computeEnabledMap({
@@ -446,6 +524,9 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
   const switchAccreditation = (acc: Accreditation) => {
     setAccreditation(acc);
+    setProgram(
+      acc === '2023' ? STUDY_PROGRAMS_2023[0] : STUDY_PROGRAMS_2018[0],
+    );
     setStatuses(loadStatuses(acc));
   };
 
@@ -484,11 +565,18 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
         accreditation={accreditation()}
         onReset={resetStatuses}
         onSwitchAccreditation={switchAccreditation}
+        onSwitchProgram={setProgram}
         onToggleFilter={() => {
           setShowOnlyEnabled((v) => !v);
         }}
+        program={program()}
         showOnlyEnabled={showOnlyEnabled()}
         totalCredits={totalCredits()}
+      />
+
+      <CreditLimitWarning
+        levelLimits={LEVEL_CREDIT_LIMITS}
+        levels={overLimitLevels()}
       />
 
       {/* table */}
