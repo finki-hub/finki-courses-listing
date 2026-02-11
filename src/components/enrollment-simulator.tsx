@@ -62,7 +62,10 @@ type SimulatorCourse = {
 
 const STORAGE_KEY_PREFIX = 'enrollment-';
 const STORAGE_KEY_ACC = 'enrollment-accreditation';
+const STORAGE_KEY_HPC = 'enrollment-hpc';
 const STORAGE_KEY_PROGRAM = 'enrollment-program';
+
+const HPC_CREDITS = 6;
 
 const loadStatuses = (
   accreditation: Accreditation,
@@ -188,10 +191,12 @@ const CourseRow = (props: CourseRowProps) => (
 
 type SimulatorToolbarProps = {
   accreditation: Accreditation;
+  hpcCompleted: boolean;
   onReset: () => void;
   onSwitchAccreditation: (acc: Accreditation) => void;
   onSwitchProgram: (p: string) => void;
   onToggleFilter: () => void;
+  onToggleHpc: () => void;
   program: string;
   showOnlyEnabled: boolean;
   totalCredits: number;
@@ -275,6 +280,18 @@ const SimulatorToolbar = (props: SimulatorToolbarProps) => {
             </span>
           </Show>
         </div>
+
+        <label class="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            checked={props.hpcCompleted}
+            class="accent-primary h-4 w-4"
+            onChange={() => {
+              props.onToggleHpc();
+            }}
+            type="checkbox"
+          />
+          HPC (+{HPC_CREDITS} кредити)
+        </label>
 
         <div class="sm:ml-auto" />
 
@@ -517,6 +534,9 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   );
 
   const [showOnlyEnabled, setShowOnlyEnabled] = createSignal(false);
+  const [hpcCompleted, setHpcCompleted] = createSignal(
+    localStorage.getItem(STORAGE_KEY_HPC) === 'true',
+  );
 
   const { courseInfoMap, parsedCourses } = useSimulatorCourses(
     () => props.courses,
@@ -530,8 +550,15 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     for (const c of parsedCourses()) {
       if (s[c.name]?.passed) sum += c.credits;
     }
+    if (hpcCompleted()) sum += HPC_CREDITS;
     return sum;
   });
+
+  createEffect(
+    on(hpcCompleted, (v) => {
+      localStorage.setItem(STORAGE_KEY_HPC, String(v));
+    }),
+  );
 
   const LEVEL_CREDIT_LIMITS: Record<number, number> = { 1: 6, 2: 36 };
 
@@ -622,6 +649,7 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     )
       return;
     setStatuses({});
+    setHpcCompleted(false);
   };
 
   return (
@@ -633,11 +661,15 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
       <SimulatorToolbar
         accreditation={accreditation()}
+        hpcCompleted={hpcCompleted()}
         onReset={resetStatuses}
         onSwitchAccreditation={switchAccreditation}
         onSwitchProgram={setProgram}
         onToggleFilter={() => {
           setShowOnlyEnabled((v) => !v);
+        }}
+        onToggleHpc={() => {
+          setHpcCompleted((v) => !v);
         }}
         program={program()}
         showOnlyEnabled={showOnlyEnabled()}
