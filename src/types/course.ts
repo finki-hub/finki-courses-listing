@@ -1,41 +1,60 @@
-export type CourseRaw = {
-  '2011/2012'?: string;
-  '2012/2013'?: string;
-  '2013/2014'?: string;
+import { z } from 'zod/v4';
 
-  '2014/2015'?: string;
-  '2015/2016'?: string;
-  '2016/2017'?: string;
-  '2017/2018'?: string;
-  '2018-available'?: string;
-  '2018-channel'?: string;
-  '2018-code'?: string;
-  '2018-level'?: string;
-  '2018-name'?: string;
-  '2018-prerequisite'?: string;
-  '2018-semester'?: string;
-  '2018/2019'?: string;
-  '2019/2020'?: string;
-  '2020/2021'?: string;
-  '2021/2022'?: string;
+const optionalString = z.string().optional();
 
-  '2022/2023'?: string;
-  '2023-available'?: string;
+export const courseSchema = z.object({
+  '2011/2012': optionalString,
+  '2012/2013': optionalString,
+  '2013/2014': optionalString,
+  '2014/2015': optionalString,
+  '2015/2016': optionalString,
+  '2016/2017': optionalString,
+  '2017/2018': optionalString,
+  '2018-available': z.string(),
+  '2018-channel': optionalString,
+  '2018-code': optionalString,
+  '2018-level': optionalString,
+  '2018-name': optionalString,
+  '2018-prerequisite': optionalString,
+  '2018-semester': optionalString,
+  '2018/2019': optionalString,
+  '2019/2020': optionalString,
+  '2020/2021': optionalString,
+  '2021/2022': optionalString,
+  '2022/2023': optionalString,
+  '2023-available': z.string(),
+  '2023-channel': optionalString,
+  '2023-code': optionalString,
+  '2023-level': optionalString,
+  '2023-name': optionalString,
+  '2023-prerequisite': optionalString,
+  '2023-semester': optionalString,
+  '2023/2024': optionalString,
+  '2024/2025': optionalString,
+  '2025/2026': optionalString,
+  assistants: optionalString,
+  name: z.string(),
+  professors: z.string(),
+  tags: optionalString,
+});
 
-  '2023-channel'?: string;
-  '2023-code'?: string;
-  '2023-level'?: string;
-  '2023-name'?: string;
-  '2023-prerequisite'?: string;
-  '2023-semester'?: string;
+export const coursesSchema = z.array(courseSchema);
 
-  '2023/2024'?: string;
-  '2024/2025'?: string;
-  '2025/2026'?: string;
-  assistants?: string;
-  name: string;
-  professors: string;
+export type CourseRaw = z.infer<typeof courseSchema>;
+
+export const TAG_TRANSLATIONS: Record<string, string> = {
+  ai: 'Вештачка интелигенција',
+  devops: 'DevOps',
+  filler: 'Филер',
+  math: 'Математика',
+  networking: 'Мрежи',
+  web: 'Веб',
 };
+
+export const ALL_TAGS = Object.keys(TAG_TRANSLATIONS);
+
+export const getCourseTags = (course: CourseRaw): string[] =>
+  course.tags?.split(',').filter(Boolean) ?? [];
 
 export const ACADEMIC_YEARS = [
   '2025/2026',

@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, Show } from 'solid-js';
 
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -8,14 +9,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { type CourseRaw, getAccreditationInfo } from '@/types/course';
+import {
+  ALL_TAGS,
+  type CourseRaw,
+  getAccreditationInfo,
+  getCourseTags,
+  TAG_TRANSLATIONS,
+} from '@/types/course';
 
 import { CourseDetailDialog } from './course-detail-dialog';
 
 type CourseTableProps = {
   courses: CourseRaw[];
 };
-type SortColumn = 'accreditation' | 'name';
+type SortColumn = 'accreditation' | 'name' | 'tags';
 
 type SortDirection = 'asc' | 'desc';
 
@@ -34,6 +41,17 @@ export const CourseTable = (props: CourseTableProps) => {
   const [search, setSearch] = createSignal('');
   const [sortColumn, setSortColumn] = createSignal<SortColumn>('name');
   const [sortDirection, setSortDirection] = createSignal<SortDirection>('asc');
+  const [selectedTags, setSelectedTags] = createSignal<Set<string>>(new Set());
+
+  const toggleTag = (tag: string) => {
+    const current = new Set(selectedTags());
+    if (current.has(tag)) {
+      current.delete(tag);
+    } else {
+      current.add(tag);
+    }
+    setSelectedTags(current);
+  };
 
   const toggleSort = (column: SortColumn) => {
     if (sortColumn() === column) {
@@ -49,7 +67,8 @@ export const CourseTable = (props: CourseTableProps) => {
 
   const filteredCourses = createMemo(() => {
     const term = search().toLowerCase();
-    const filtered = term
+    const tags = selectedTags();
+    let filtered = term
       ? props.courses.filter(
           (c) =>
             c.name.toLowerCase().includes(term) ||
@@ -58,12 +77,26 @@ export const CourseTable = (props: CourseTableProps) => {
         )
       : [...props.courses];
 
+    if (tags.size > 0) {
+      filtered = filtered.filter((c) => {
+        const courseTags = getCourseTags(c);
+        return [...tags].some((t) => courseTags.includes(t));
+      });
+    }
+
     const col = sortColumn();
     const dir = sortDirection() === 'asc' ? 1 : -1;
 
     return filtered.sort((a, b) => {
-      const valA = col === 'name' ? a.name : getAccLabel(a);
-      const valB = col === 'name' ? b.name : getAccLabel(b);
+      let valA: string;
+      let valB: string;
+      if (col === 'tags') {
+        valA = getCourseTags(a).join(',');
+        valB = getCourseTags(b).join(',');
+      } else {
+        valA = col === 'name' ? a.name : getAccLabel(a);
+        valB = col === 'name' ? b.name : getAccLabel(b);
+      }
       return valA.localeCompare(valB) * dir;
     });
   });
@@ -82,6 +115,25 @@ export const CourseTable = (props: CourseTableProps) => {
         type="text"
         value={search()}
       />
+
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="text-muted-foreground text-sm">Тагови:</span>
+        <For each={ALL_TAGS}>
+          {(tag) => (
+            <label class="flex cursor-pointer items-center gap-1.5 text-sm">
+              <input
+                checked={selectedTags().has(tag)}
+                class="accent-primary h-4 w-4 rounded"
+                onChange={() => {
+                  toggleTag(tag);
+                }}
+                type="checkbox"
+              />
+              {TAG_TRANSLATIONS[tag] ?? tag}
+            </label>
+          )}
+        </For>
+      </div>
 
       <div class="text-muted-foreground text-sm">
         {filteredCourses().length} предмети
@@ -107,6 +159,14 @@ export const CourseTable = (props: CourseTableProps) => {
               >
                 Акредитација{sortIndicator('accreditation')}
               </TableHead>
+              <TableHead
+                class="cursor-pointer select-none"
+                onClick={() => {
+                  toggleSort('tags');
+                }}
+              >
+                Тагови{sortIndicator('tags')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -115,7 +175,7 @@ export const CourseTable = (props: CourseTableProps) => {
                 <TableRow>
                   <TableCell
                     class="h-24 text-center"
-                    colSpan={2}
+                    colSpan={3}
                   >
                     Нема резултати.
                   </TableCell>
@@ -133,6 +193,17 @@ export const CourseTable = (props: CourseTableProps) => {
                   >
                     <TableCell class="font-medium">{course.name}</TableCell>
                     <TableCell>{getAccLabel(course)}</TableCell>
+                    <TableCell>
+                      <div class="flex flex-wrap gap-1">
+                        <For each={getCourseTags(course)}>
+                          {(tag) => (
+                            <Badge variant="secondary">
+                              {TAG_TRANSLATIONS[tag] ?? tag}
+                            </Badge>
+                          )}
+                        </For>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )}
               </For>
