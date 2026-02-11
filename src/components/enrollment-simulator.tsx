@@ -616,6 +616,11 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
   return (
     <div class="space-y-4">
+      <p class="text-muted-foreground text-sm">
+        Означете ги предметите кои сте ги слушале или положиле. Предметите за
+        кои не се исполнети предусловите се оневозможени.
+      </p>
+
       <SimulatorToolbar
         accreditation={accreditation()}
         onReset={resetStatuses}
@@ -641,8 +646,8 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
             <TableRow>
               <TableHead class="w-16 text-center">Сем.</TableHead>
               <TableHead>Предмет</TableHead>
-              <TableHead class="w-24 text-center">Слушано</TableHead>
-              <TableHead class="w-24 text-center">Положено</TableHead>
+              <TableHead class="w-24 text-center">Слушан</TableHead>
+              <TableHead class="w-24 text-center">Положен</TableHead>
               <TableHead class="hidden md:table-cell">Предуслов</TableHead>
             </TableRow>
           </TableHeader>
