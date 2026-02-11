@@ -181,6 +181,8 @@ type SimulatorToolbarProps = {
   accreditation: Accreditation;
   onReset: () => void;
   onSwitchAccreditation: (acc: Accreditation) => void;
+  onToggleFilter: () => void;
+  showOnlyEnabled: boolean;
   totalCredits: number;
 };
 
@@ -236,6 +238,18 @@ const SimulatorToolbar = (props: SimulatorToolbarProps) => (
     >
       Ресетирај
     </button>
+
+    <label class="flex cursor-pointer items-center gap-2 text-sm">
+      <input
+        checked={props.showOnlyEnabled}
+        class="accent-primary h-4 w-4"
+        onChange={() => {
+          props.onToggleFilter();
+        }}
+        type="checkbox"
+      />
+      Само достапни
+    </label>
   </div>
 );
 
@@ -349,6 +363,8 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   const [statuses, setStatuses] = createSignal<Record<string, CourseStatus>>(
     loadStatuses('2023'),
   );
+
+  const [showOnlyEnabled, setShowOnlyEnabled] = createSignal(false);
 
   const { courseInfoMap, parsedCourses } = useSimulatorCourses(
     () => props.courses,
@@ -468,6 +484,10 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
         accreditation={accreditation()}
         onReset={resetStatuses}
         onSwitchAccreditation={switchAccreditation}
+        onToggleFilter={() => {
+          setShowOnlyEnabled((v) => !v);
+        }}
+        showOnlyEnabled={showOnlyEnabled()}
         totalCredits={totalCredits()}
       />
 
@@ -485,21 +505,26 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
           </TableHeader>
           <TableBody>
             <For each={parsedCourses()}>
-              {(course) => (
-                <CourseRow
-                  course={course}
-                  enabled={enabledMap()[course.name] ?? true}
-                  listened={statuses()[course.name]?.listened ?? false}
-                  onToggleListened={() => {
-                    toggleListened(course.name);
-                  }}
-                  onTogglePassed={() => {
-                    togglePassed(course.name);
-                  }}
-                  overLimit={overLimitSet().has(course.name)}
-                  passed={statuses()[course.name]?.passed ?? false}
-                />
-              )}
+              {(course) => {
+                const enabled = () => enabledMap()[course.name] ?? true;
+                return (
+                  <Show when={!showOnlyEnabled() || enabled()}>
+                    <CourseRow
+                      course={course}
+                      enabled={enabled()}
+                      listened={statuses()[course.name]?.listened ?? false}
+                      onToggleListened={() => {
+                        toggleListened(course.name);
+                      }}
+                      onTogglePassed={() => {
+                        togglePassed(course.name);
+                      }}
+                      overLimit={overLimitSet().has(course.name)}
+                      passed={statuses()[course.name]?.passed ?? false}
+                    />
+                  </Show>
+                );
+              }}
             </For>
           </TableBody>
         </Table>
