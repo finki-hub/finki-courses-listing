@@ -8,11 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  type CourseRaw,
-  getAccreditationInfo,
-  getEnrollmentForYear,
-} from '@/types/course';
+import { type CourseRaw, getAccreditationInfo } from '@/types/course';
 
 import { CourseDetailDialog } from './course-detail-dialog';
 
@@ -63,11 +59,6 @@ export const CourseTable = (props: CourseTableProps) => {
             <TableRow>
               <TableHead class="w-[300px]">Предмет</TableHead>
               <TableHead>Акредитација</TableHead>
-              <TableHead>Семестар</TableHead>
-              <TableHead>Професори</TableHead>
-              <TableHead class="text-right">2025/2026</TableHead>
-              <TableHead class="text-right">2024/2025</TableHead>
-              <TableHead class="text-right">2023/2024</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -76,7 +67,7 @@ export const CourseTable = (props: CourseTableProps) => {
                 <TableRow>
                   <TableCell
                     class="h-24 text-center"
-                    colSpan={7}
+                    colSpan={2}
                   >
                     Нема резултати.
                   </TableCell>
@@ -88,7 +79,6 @@ export const CourseTable = (props: CourseTableProps) => {
                 {(course) => {
                   const acc2023 = () => getAccreditationInfo(course, '2023');
                   const acc2018 = () => getAccreditationInfo(course, '2018');
-                  const activeAcc = () => acc2023() ?? acc2018();
                   const accLabel = () => {
                     const labels: string[] = [];
                     if (acc2023()) labels.push('2023');
@@ -105,19 +95,6 @@ export const CourseTable = (props: CourseTableProps) => {
                     >
                       <TableCell class="font-medium">{course.name}</TableCell>
                       <TableCell>{accLabel()}</TableCell>
-                      <TableCell>{activeAcc()?.semester ?? '—'}</TableCell>
-                      <TableCell class="max-w-[200px] truncate">
-                        {course.professors.replaceAll('\n', ', ')}
-                      </TableCell>
-                      <TableCell class="text-right">
-                        {getEnrollmentForYear(course, '2025/2026') || '—'}
-                      </TableCell>
-                      <TableCell class="text-right">
-                        {getEnrollmentForYear(course, '2024/2025') || '—'}
-                      </TableCell>
-                      <TableCell class="text-right">
-                        {getEnrollmentForYear(course, '2023/2024') || '—'}
-                      </TableCell>
                     </TableRow>
                   );
                 }}
