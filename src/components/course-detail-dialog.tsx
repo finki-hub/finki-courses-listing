@@ -28,13 +28,36 @@ import {
   TAG_TRANSLATIONS,
 } from '@/types/course';
 
+const FINKI_SUBJECT_BASE = 'https://www.finki.ukim.mk/mk/subject/';
+
 const AccreditationCard = (props: {
   info: AccreditationInfo;
   year: '2018' | '2023';
 }) => (
   <Card>
     <CardHeader class="pb-3">
-      <CardTitle class="text-base">Акредитација {props.year}</CardTitle>
+      <div class="flex items-center justify-between">
+        <CardTitle class="text-base">Акредитација {props.year}</CardTitle>
+        <Show when={props.info.code}>
+          <a
+            class="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-xs font-medium"
+            href={`${FINKI_SUBJECT_BASE}${props.info.code}`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Линк
+            <svg
+              class="h-3 w-3"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" />
+            </svg>
+          </a>
+        </Show>
+      </div>
     </CardHeader>
     <CardContent>
       <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
