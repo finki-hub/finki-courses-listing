@@ -380,13 +380,13 @@ type CreditLimitWarningProps = {
 const CreditLimitWarning = (props: CreditLimitWarningProps) => (
   <Show when={props.levels.length > 0}>
     <div class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-      ⚠ Надминати се максимално дозволените запишани кредити за{' '}
+      ⚠ Надминати се макс. дозволените освоени кредити за{' '}
       {props.levels
         .map(
-          (lvl) =>
-            `L${String(lvl)} (макс. ${String(props.levelLimits[lvl] ?? 0)})`,
+          (lvl) => `L${String(lvl)} (${String(props.levelLimits[lvl] ?? 0)})`,
         )
         .join(', ')}
+      . Кредитите не се избројани.
     </div>
   </Show>
 );
@@ -655,16 +655,6 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     program,
   );
 
-  const totalCredits = createMemo(() => {
-    const s = statuses();
-    let sum = 0;
-    for (const c of parsedCourses()) {
-      if (s[c.name]?.passed) sum += c.credits;
-    }
-    if (hpcCompleted()) sum += HPC_CREDITS;
-    return sum;
-  });
-
   const totalCourses = createMemo(() => {
     const s = statuses();
     let enrolled = 0;
@@ -701,16 +691,29 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
     const names = new Set<string>();
     const levels: number[] = [];
+    let excessCredits = 0;
     for (const [level, limit] of Object.entries(LEVEL_CREDIT_LIMITS)) {
       const lvl = Number(level);
-      if ((electiveCreditsPerLevel[lvl] ?? 0) > limit) {
+      const actual = electiveCreditsPerLevel[lvl] ?? 0;
+      if (actual > limit) {
         levels.push(lvl);
+        excessCredits += actual - limit;
         for (const c of electiveCoursesByLevel[lvl] ?? []) {
           names.add(c.name);
         }
       }
     }
-    return { levels, names };
+    return { excessCredits, levels, names };
+  });
+
+  const totalCredits = createMemo(() => {
+    const s = statuses();
+    let sum = 0;
+    for (const c of parsedCourses()) {
+      if (s[c.name]?.passed) sum += c.credits;
+    }
+    if (hpcCompleted()) sum += HPC_CREDITS;
+    return sum - overLimitInfo().excessCredits;
   });
 
   const overLimitSet = createMemo(() => overLimitInfo().names);
