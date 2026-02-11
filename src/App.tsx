@@ -61,7 +61,7 @@ const App = () => {
           onClick={() => setPage('simulator')}
           type="button"
         >
-          Запишување
+          Симулатор
         </button>
       </nav>
 

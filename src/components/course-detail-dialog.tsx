@@ -191,7 +191,7 @@ export const CourseDetailDialog = (props: CourseDetailDialogProps) => (
                   {/* Enrollment history */}
                   <div>
                     <h4 class="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
-                      Историја на запишување
+                      Број на запишани студенти
                     </h4>
                     <div class="rounded-md border">
                       <Table>
