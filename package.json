@@ -1,0 +1,33 @@
+{
+  "name": "finki-courses-listing",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --cache",
+    "format": "eslint . --fix"
+  },
+  "dependencies": {
+    "@kobalte/core": "^0.13.11",
+    "autoprefixer": "^10.4.24",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "postcss": "^8.5.6",
+    "solid-js": "^1.9.10",
+    "tailwind-merge": "^3.4.0",
+    "tailwindcss": "^3.4.19",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.2",
+    "eslint-config-imperium": "^3.4.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-solid": "^2.11.10"
+  }
+}
