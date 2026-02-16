@@ -21,6 +21,7 @@ import {
 import {
   type CourseInfo,
   type CourseStatus,
+  type EvalContext,
   isPrerequisiteMet,
   parsePrerequisite,
   type PrereqNode,
@@ -35,10 +36,7 @@ import {
   STUDY_PROGRAMS_2023,
 } from '@/types/course';
 
-// ---------------------------------------------------------------------------
 // Types
-// ---------------------------------------------------------------------------
-
 type Accreditation = '2018' | '2023';
 type EnrollmentSimulatorProps = {
   courses: CourseRaw[];
@@ -57,10 +55,7 @@ type SimulatorCourse = {
   semester: number;
 };
 
-// ---------------------------------------------------------------------------
 // Helpers
-// ---------------------------------------------------------------------------
-
 const STORAGE_KEY_PREFIX = 'enrollment-';
 const STORAGE_KEY_ACC = 'enrollment-accreditation';
 const STORAGE_KEY_HPC = 'enrollment-hpc';
@@ -89,9 +84,12 @@ const saveStatuses = (
   );
 };
 
-// ---------------------------------------------------------------------------
+const LEVEL_CREDIT_LIMITS: Record<number, number> = { 1: 6, 2: 36 };
+
+const REQUIRED_MARKER =
+  '\u0437\u0430\u0434\u043E\u043B\u0436\u0438\u0442\u0435\u043B\u0435\u043D';
+
 // Sub-components
-// ---------------------------------------------------------------------------
 
 type CheckboxProps = {
   checked: boolean;
@@ -100,6 +98,7 @@ type CheckboxProps = {
 };
 
 type CourseRowProps = {
+  atLimit: boolean;
   course: SimulatorCourse;
   enabled: boolean;
   listened: boolean;
@@ -107,6 +106,7 @@ type CourseRowProps = {
   onTogglePassed: () => void;
   overLimit: boolean;
   passed: boolean;
+  reason: string;
 };
 
 const Checkbox = (props: CheckboxProps) => (
@@ -151,14 +151,37 @@ const CourseRow = (props: CourseRowProps) => (
           ? 'bg-green-500/10 border-l-green-500'
           : props.listened
             ? 'bg-blue-500/10 border-l-blue-500'
-            : 'border-l-transparent'
+            : props.atLimit
+              ? 'bg-orange-500/10 border-l-orange-400'
+              : 'border-l-transparent'
     }`}
     style={{ height: '41px' }}
   >
     <TableCell class="text-muted-foreground text-center text-xs">
       {props.course.semester}
     </TableCell>
-    <TableCell class="font-medium">{props.course.name}</TableCell>
+    <TableCell class="font-medium">
+      <span
+        class="group/tip inline-flex cursor-help items-center gap-1 leading-none"
+        title={props.reason}
+      >
+        {props.course.name}
+        <svg
+          class="text-muted-foreground/50 group-hover/tip:text-muted-foreground h-3.5 w-3.5 shrink-0 translate-y-px transition-colors"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+      </span>
+    </TableCell>
     <TableCell class="text-center">
       <Checkbox
         checked={props.listened}
@@ -394,9 +417,11 @@ const CreditLimitWarning = (props: CreditLimitWarningProps) => (
 type SimulatorTableProps = {
   courses: SimulatorCourse[];
   enabledMap: Record<string, boolean>;
+  fullLevels: Set<number>;
   onToggleListened: (name: string) => void;
   onTogglePassed: (name: string) => void;
   overLimitSet: Set<string>;
+  reasonMap: Record<string, string>;
   seasonFilter: SeasonFilter;
   showOnlyEnabled: boolean;
   statuses: Record<string, CourseStatus>;
@@ -429,6 +454,13 @@ const SimulatorTable = (props: SimulatorTableProps) => (
                 }
               >
                 <CourseRow
+                  atLimit={
+                    !props.statuses[course.name]?.passed &&
+                    !(
+                      course.programState?.includes(REQUIRED_MARKER) ?? false
+                    ) &&
+                    props.fullLevels.has(course.level)
+                  }
                   course={course}
                   enabled={enabled()}
                   listened={props.statuses[course.name]?.listened ?? false}
@@ -440,6 +472,7 @@ const SimulatorTable = (props: SimulatorTableProps) => (
                   }}
                   overLimit={props.overLimitSet.has(course.name)}
                   passed={props.statuses[course.name]?.passed ?? false}
+                  reason={props.reasonMap[course.name] ?? ''}
                 />
               </Show>
             );
@@ -450,9 +483,7 @@ const SimulatorTable = (props: SimulatorTableProps) => (
   </div>
 );
 
-// ---------------------------------------------------------------------------
 // Prerequisite fixpoint
-// ---------------------------------------------------------------------------
 
 const computeEnabledMap = (config: {
   courseInfoMap: Map<string, CourseInfo>;
@@ -496,9 +527,113 @@ const computeEnabledMap = (config: {
   return enabled;
 };
 
-// ---------------------------------------------------------------------------
+// Reason map – explains each course's status for tooltips
+
+const describePrereqNode = (node: PrereqNode, ctx: EvalContext): string[] => {
+  switch (node.type) {
+    case 'and':
+      return node.children.flatMap((c) => describePrereqNode(c, ctx));
+    case 'course': {
+      const st = ctx.statuses[node.name];
+      const info = ctx.courseInfoMap.get(node.name);
+      const diff = info ? ctx.courseSemester - info.semester : 2;
+      const needed = diff === 1 ? 'слушан' : 'положен';
+      const met = diff === 1 ? (st?.listened ?? false) : (st?.passed ?? false);
+      return [
+        met
+          ? `\u2713 ${node.name} (${needed})`
+          : `\u2717 ${node.name} (потребно: ${needed})`,
+      ];
+    }
+    case 'credits': {
+      const met = ctx.totalCredits >= node.amount;
+      return [
+        met
+          ? `\u2713 ${String(node.amount)} кредити`
+          : `\u2717 ${String(node.amount)} кредити (имате ${String(ctx.totalCredits)})`,
+      ];
+    }
+    case 'or': {
+      const descs = node.children.map((c) => describePrereqNode(c, ctx));
+      const anyMet = descs.some((d) =>
+        d.every((line) => line.startsWith('\u2713')),
+      );
+      if (anyMet) return ['\u2713 Исполнет еден од условите'];
+      return ['\u2717 Ниеден не е исполнет:', ...descs.flat()];
+    }
+    default:
+      return [];
+  }
+};
+
+const computeReasonMap = (config: {
+  courseInfoMap: Map<string, CourseInfo>;
+  courses: SimulatorCourse[];
+  enabledMap: Record<string, boolean>;
+  fullLevels: Set<number>;
+  overLimitSet: Set<string>;
+  statuses: Record<string, CourseStatus>;
+  totalCredits: number;
+}): Record<string, string> => {
+  const reasons: Record<string, string> = {};
+
+  for (const c of config.courses) {
+    const parts: string[] = [];
+    const st = config.statuses[c.name];
+    const isRequired = c.programState?.includes(REQUIRED_MARKER) ?? false;
+
+    // Current status
+    if (st?.passed) parts.push('\u2705 Положен');
+    else if (st?.listened) parts.push('\uD83D\uDCD6 Слушан');
+
+    // Over-limit
+    if (config.overLimitSet.has(c.name)) {
+      const limit = LEVEL_CREDIT_LIMITS[c.level] ?? 0;
+      parts.push(
+        `\u274C Надминат L${String(c.level)} лимит (макс. ${String(limit)} кредити)`,
+      );
+    } else if (!st?.passed && !isRequired && config.fullLevels.has(c.level)) {
+      const limit = LEVEL_CREDIT_LIMITS[c.level] ?? 0;
+      parts.push(
+        `\u26A0\uFE0F L${String(c.level)} лимит пополнет (${String(limit)} кредити)`,
+      );
+    }
+
+    // Prerequisite explanation
+    if (c.programState === '\u043D\u0435\u043C\u0430') {
+      parts.push('\u2139\uFE0F Факултетска листа \u2013 нема предуслов');
+    } else if (c.prereqNode.type === 'none') {
+      parts.push('\u2705 Нема предуслов');
+    } else {
+      let credits = 0;
+      for (const cc of config.courses) {
+        if (
+          config.statuses[cc.name]?.passed &&
+          (config.enabledMap[cc.name] ?? false)
+        ) {
+          credits += cc.credits;
+        }
+      }
+      const ctx: EvalContext = {
+        courseInfoMap: config.courseInfoMap,
+        courseSemester: c.semester,
+        statuses: config.statuses,
+        totalCredits: credits,
+      };
+      if (credits >= 180) {
+        parts.push('\u2705 \u2265180 кредити \u2013 предуслови не важат');
+      } else {
+        parts.push('Предуслов:', ...describePrereqNode(c.prereqNode, ctx));
+      }
+    }
+
+    reasons[c.name] = parts.join('\n');
+  }
+
+  return reasons;
+};
+
 // Derived course data
-// ---------------------------------------------------------------------------
 
 const useSimulatorCourses = (
   getCourses: () => CourseRaw[],
@@ -563,9 +698,7 @@ const useSimulatorCourses = (
   return { courseInfoMap, parsedCourses };
 };
 
-// ---------------------------------------------------------------------------
 // Side-effects hook
-// ---------------------------------------------------------------------------
 
 type SimulatorEffectsParams = {
   accreditation: Accessor<Accreditation>;
@@ -624,9 +757,63 @@ const useSimulatorEffects = (params: SimulatorEffectsParams): void => {
   );
 };
 
-// ---------------------------------------------------------------------------
+// Over-limit elective detection
+
+const computeOverLimitInfo = (
+  courses: SimulatorCourse[],
+  s: Record<string, CourseStatus>,
+): {
+  excessCredits: number;
+  fullLevels: Set<number>;
+  levels: number[];
+  names: Set<string>;
+} => {
+  const creditsPerLevel: Record<number, number> = {};
+  const coursesByLevel: Record<number, SimulatorCourse[]> = {};
+
+  for (const c of courses) {
+    if (!s[c.name]?.passed) continue;
+    const isRequired = c.programState?.includes(REQUIRED_MARKER) ?? false;
+    if (isRequired) continue;
+    creditsPerLevel[c.level] = (creditsPerLevel[c.level] ?? 0) + c.credits;
+    (coursesByLevel[c.level] ??= []).push(c);
+  }
+
+  const names = new Set<string>();
+  const levels: number[] = [];
+  const fullLevels = new Set<number>();
+  let excessCredits = 0;
+
+  for (const [level, limit] of Object.entries(LEVEL_CREDIT_LIMITS)) {
+    const lvl = Number(level);
+    const actual = creditsPerLevel[lvl] ?? 0;
+
+    if (actual >= limit) fullLevels.add(lvl);
+    if (actual <= limit) continue;
+
+    levels.push(lvl);
+    excessCredits += actual - limit;
+
+    // Keep earlier-semester courses; mark later ones as excess
+    const list = (coursesByLevel[lvl] ?? []).slice();
+    list.sort(
+      (a, b) => a.semester - b.semester || a.name.localeCompare(b.name, 'mk'),
+    );
+
+    let acc = 0;
+    for (const c of list) {
+      if (acc + c.credits <= limit) {
+        acc += c.credits;
+      } else {
+        names.add(c.name);
+      }
+    }
+  }
+
+  return { excessCredits, fullLevels, levels, names };
+};
+
 // Component
-// ---------------------------------------------------------------------------
 
 export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   const savedAcc =
@@ -673,38 +860,9 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     }),
   );
 
-  const LEVEL_CREDIT_LIMITS: Record<number, number> = { 1: 6, 2: 36 };
-
-  const overLimitInfo = createMemo(() => {
-    const s = statuses();
-    const electiveCreditsPerLevel: Record<number, number> = {};
-    const electiveCoursesByLevel: Record<number, SimulatorCourse[]> = {};
-
-    for (const c of parsedCourses()) {
-      if (!s[c.name]?.passed) continue;
-      const isRequired = c.programState?.includes('задолжителен') ?? false;
-      if (isRequired) continue;
-      electiveCreditsPerLevel[c.level] =
-        (electiveCreditsPerLevel[c.level] ?? 0) + c.credits;
-      (electiveCoursesByLevel[c.level] ??= []).push(c);
-    }
-
-    const names = new Set<string>();
-    const levels: number[] = [];
-    let excessCredits = 0;
-    for (const [level, limit] of Object.entries(LEVEL_CREDIT_LIMITS)) {
-      const lvl = Number(level);
-      const actual = electiveCreditsPerLevel[lvl] ?? 0;
-      if (actual > limit) {
-        levels.push(lvl);
-        excessCredits += actual - limit;
-        for (const c of electiveCoursesByLevel[lvl] ?? []) {
-          names.add(c.name);
-        }
-      }
-    }
-    return { excessCredits, levels, names };
-  });
+  const overLimitInfo = createMemo(() =>
+    computeOverLimitInfo(parsedCourses(), statuses()),
+  );
 
   const totalCredits = createMemo(() => {
     const s = statuses();
@@ -718,12 +876,25 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
 
   const overLimitSet = createMemo(() => overLimitInfo().names);
   const overLimitLevels = createMemo(() => overLimitInfo().levels);
+  const fullLevels = createMemo(() => overLimitInfo().fullLevels);
 
   const enabledMap = createMemo(() =>
     computeEnabledMap({
       courseInfoMap: courseInfoMap(),
       courses: parsedCourses(),
       statuses: statuses(),
+    }),
+  );
+
+  const reasonMap = createMemo(() =>
+    computeReasonMap({
+      courseInfoMap: courseInfoMap(),
+      courses: parsedCourses(),
+      enabledMap: enabledMap(),
+      fullLevels: fullLevels(),
+      overLimitSet: overLimitSet(),
+      statuses: statuses(),
+      totalCredits: totalCredits(),
     }),
   );
 
@@ -813,9 +984,11 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
       <SimulatorTable
         courses={parsedCourses()}
         enabledMap={enabledMap()}
+        fullLevels={fullLevels()}
         onToggleListened={toggleListened}
         onTogglePassed={togglePassed}
         overLimitSet={overLimitSet()}
+        reasonMap={reasonMap()}
         seasonFilter={seasonFilter()}
         showOnlyEnabled={showOnlyEnabled()}
         statuses={statuses()}

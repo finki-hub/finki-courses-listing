@@ -15,7 +15,9 @@ const App = () => {
     <div class="container mx-auto py-8">
       <div class="mb-6 flex items-start justify-between">
         <div>
-          <h1 class="text-3xl font-bold tracking-tight">ФИНКИ ПРЕДМЕТИ</h1>
+          <h1 class="text-3xl font-bold tracking-tight">
+            ФИНКИ Хаб / Предмети
+          </h1>
           <p class="text-muted-foreground mt-1">
             Преглед на сите предмети, смерови и акредитации
           </p>
