@@ -12,6 +12,6 @@ jobs:
   deploy:
     uses: finki-hub/.github/.github/workflows/cloudflare-pages.yaml@main
     with:
-      project-name: finki-courses-listing
+      project-name: finki-hub-courses-listing
       directory: dist
     secrets: inherit

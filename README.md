@@ -1,4 +1,4 @@
-# FINKI Courses Listing
+# FINKI Hub / Courses Listing
 
 A course browser and enrollment simulator for FCSE.
 

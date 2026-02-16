@@ -25,7 +25,7 @@ const App = () => {
         <div class="flex items-center gap-2">
           <a
             class="text-muted-foreground hover:text-foreground inline-flex items-center rounded-md p-2 transition-colors"
-            href="https://github.com/finki-hub/finki-courses-listing"
+            href="https://github.com/finki-hub/courses-listing"
             rel="noopener noreferrer"
             target="_blank"
             title="GitHub"
