@@ -122,7 +122,6 @@ export const computeEnabledMap = (config: {
   return enabled;
 };
 
-
 const describePrereqNode = (node: PrereqNode, ctx: EvalContext): string[] => {
   switch (node.type) {
     case 'and':
