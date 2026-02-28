@@ -12,7 +12,6 @@ export type CourseStatus = {
 export type EvalContext = {
   courseInfoMap: Map<string, CourseInfo>;
   courseSemester: number;
-  electiveCourses?: Set<string>;
   statuses: Record<string, CourseStatus>;
   totalCredits: number;
 };
@@ -154,8 +153,6 @@ const OVERRIDE_CREDITS = 180;
  * - Otherwise the prerequisite course must be **passed**.
  */
 const isCoursePrereqMet = (prereqName: string, ctx: EvalContext): boolean => {
-  if (ctx.electiveCourses?.has(prereqName)) return true;
-
   const status = ctx.statuses[prereqName];
   if (!status) return false;
 

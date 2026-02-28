@@ -33,6 +33,7 @@ import {
   HPC_CREDITS,
   LEVEL_CREDIT_LIMITS,
   loadStatuses,
+  pruneElectivePrereqs,
   REQUIRED_MARKER,
   saveStatuses,
   type SeasonFilter,
@@ -482,10 +483,20 @@ const useSimulatorCourses = (
   const parsedCourses = createMemo<SimulatorCourse[]>(() => {
     const list = simulatorCourses();
     const names = list.map((c) => c.name);
-    return list.map((c) => ({
-      ...c,
-      prereqNode: parsePrerequisite(c.prerequisite, names),
-    }));
+    const electives = new Set<string>();
+    for (const c of list) {
+      if (c.programState && !c.programState.includes(REQUIRED_MARKER)) {
+        electives.add(c.name);
+      }
+    }
+    return list.map((c) => {
+      const rawPrereqNode = parsePrerequisite(c.prerequisite, names);
+      return {
+        ...c,
+        prereqNode: pruneElectivePrereqs(rawPrereqNode, electives),
+        rawPrereqNode,
+      };
+    });
   });
 
   const courseInfoMap = createMemo<Map<string, CourseInfo>>(() => {
@@ -636,7 +647,6 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     computeEnabledMap({
       courseInfoMap: courseInfoMap(),
       courses: parsedCourses(),
-      electiveCourses: electiveCourses(),
       statuses: statuses(),
     }),
   );

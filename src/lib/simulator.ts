@@ -23,6 +23,7 @@ export type SimulatorCourse = {
   prerequisite: string | undefined;
   programState: string | undefined;
   raw: CourseRaw;
+  rawPrereqNode: PrereqNode;
   semester: number;
 };
 
@@ -77,22 +78,38 @@ export const buildSimulatorCourse = (config: {
     prerequisite: info.prerequisite,
     programState,
     raw,
+    rawPrereqNode: { type: 'none' },
     semester,
   };
+};
+
+export const pruneElectivePrereqs = (
+  node: PrereqNode,
+  electives: Set<string>,
+): PrereqNode => {
+  switch (node.type) {
+    case 'and':
+    case 'or': {
+      const children = node.children
+        .map((c) => pruneElectivePrereqs(c, electives))
+        .filter((c) => c.type !== 'none');
+      if (children.length === 0) return { type: 'none' };
+      if (children.length === 1) return children[0] ?? { type: 'none' };
+      return { children, type: node.type };
+    }
+    case 'course':
+      return electives.has(node.name) ? { type: 'none' } : node;
+    default:
+      return node;
+  }
 };
 
 export const computeEnabledMap = (config: {
   courseInfoMap: Map<string, CourseInfo>;
   courses: SimulatorCourse[];
-  electiveCourses: Set<string>;
   statuses: Record<string, CourseStatus>;
 }): Record<string, boolean> => {
-  const {
-    courseInfoMap: infoMap,
-    courses,
-    electiveCourses,
-    statuses: s,
-  } = config;
+  const { courseInfoMap: infoMap, courses, statuses: s } = config;
   const enabled: Record<string, boolean> = {};
 
   for (const c of courses) enabled[c.name] = true;
@@ -114,7 +131,6 @@ export const computeEnabledMap = (config: {
       const met = isPrerequisiteMet(c.prereqNode, {
         courseInfoMap: infoMap,
         courseSemester: c.semester,
-        electiveCourses,
         statuses: s,
         totalCredits: credits,
       });
@@ -129,13 +145,19 @@ export const computeEnabledMap = (config: {
   return enabled;
 };
 
-const describePrereqNode = (node: PrereqNode, ctx: EvalContext): string[] => {
+const describePrereqNode = (
+  node: PrereqNode,
+  ctx: EvalContext,
+  electives: Set<string>,
+): string[] => {
   switch (node.type) {
     case 'and':
-      return node.children.flatMap((c) => describePrereqNode(c, ctx));
+      return node.children.flatMap((c) =>
+        describePrereqNode(c, ctx, electives),
+      );
     case 'course': {
-      if (ctx.electiveCourses?.has(node.name)) {
-        return [`\u2713 ${node.name} (изборен — автоматски исполнет)`];
+      if (electives.has(node.name)) {
+        return [`\u2298 ${node.name} (изборен — не е предуслов)`];
       }
       const st = ctx.statuses[node.name];
       const info = ctx.courseInfoMap.get(node.name);
@@ -157,13 +179,15 @@ const describePrereqNode = (node: PrereqNode, ctx: EvalContext): string[] => {
       ];
     }
     case 'or': {
-      const descs = node.children.map((c) => describePrereqNode(c, ctx));
-      const anyMet = descs.some((d) =>
+      const descs = node.children.map((c) =>
+        describePrereqNode(c, ctx, electives),
+      );
+      const metIdx = descs.findIndex((d) =>
         d.every((line) => line.startsWith('\u2713')),
       );
-      return anyMet
-        ? ['\u2713 Исполнет еден од условите']
-        : ['\u2717 Ниеден не е исполнет:', ...descs.flat()];
+      return metIdx === -1
+        ? ['\u2717 Ниеден не е исполнет:', ...descs.flat()]
+        : ['\u2713 Еден од условите:', ...(descs[metIdx] ?? [])];
     }
     default:
       return [];
@@ -204,7 +228,10 @@ export const computeReasonMap = (config: {
 
     if (c.programState === '\u043D\u0435\u043C\u0430') {
       parts.push('\u2139\uFE0F Факултетска листа \u2013 нема предуслов');
-    } else if (c.prereqNode.type === 'none') {
+    } else if (
+      c.prereqNode.type === 'none' &&
+      c.rawPrereqNode.type === 'none'
+    ) {
       parts.push('\u2705 Нема предуслов');
     } else {
       let credits = 0;
@@ -219,14 +246,16 @@ export const computeReasonMap = (config: {
       const ctx: EvalContext = {
         courseInfoMap: config.courseInfoMap,
         courseSemester: c.semester,
-        electiveCourses: config.electiveCourses,
         statuses: config.statuses,
         totalCredits: credits,
       };
       if (credits >= 180) {
         parts.push('\u2705 \u2265180 кредити \u2013 предуслови не важат');
       } else {
-        parts.push('Предуслов:', ...describePrereqNode(c.prereqNode, ctx));
+        parts.push(
+          'Предуслов:',
+          ...describePrereqNode(c.rawPrereqNode, ctx, config.electiveCourses),
+        );
       }
     }
 
