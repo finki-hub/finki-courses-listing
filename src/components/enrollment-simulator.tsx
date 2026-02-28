@@ -27,6 +27,7 @@ import {
 import {
   type Accreditation,
   buildSimulatorCourse,
+  captureTableToClipboard,
   computeEnabledMap,
   computeOverLimitInfo,
   computeReasonMap,
@@ -189,10 +190,65 @@ const CourseRow = (props: CourseRowProps) => (
   </TableRow>
 );
 
+type ScreenshotState = 'capturing' | 'done' | 'error' | 'idle';
+
+const ScreenshotButton = (props: { onCapture: () => Promise<boolean> }) => {
+  const [state, setState] = createSignal<ScreenshotState>('idle');
+
+  const handle = async () => {
+    if (state() !== 'idle') return;
+    setState('capturing');
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    try {
+      const ok = await props.onCapture();
+      setState(ok ? 'done' : 'error');
+    } catch {
+      setState('error');
+    }
+    setTimeout(() => {
+      setState('idle');
+    }, 2_000);
+  };
+
+  return (
+    <button
+      class={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+        state() === 'done'
+          ? 'border-green-500 bg-green-500/10 text-green-700 dark:text-green-400'
+          : state() === 'error'
+            ? 'border-red-500 bg-red-500/10 text-red-700 dark:text-red-400'
+            : state() === 'capturing'
+              ? 'cursor-wait opacity-70'
+              : 'hover:bg-muted'
+      }`}
+      disabled={state() !== 'idle'}
+      onClick={() => {
+        void handle();
+      }}
+      title="Копирај слика од табелата во clipboard"
+      type="button"
+    >
+      <Show
+        fallback="📷 Слика"
+        when={state() !== 'idle'}
+      >
+        <Show when={state() === 'capturing'}>
+          <span class="inline-block animate-spin">⏳</span> Генерирање...
+        </Show>
+        <Show when={state() === 'done'}>✅ Успешно!</Show>
+        <Show when={state() === 'error'}>❌ Неуспешно</Show>
+      </Show>
+    </button>
+  );
+};
+
 type SimulatorToolbarProps = {
   accreditation: Accreditation;
   hpcCompleted: boolean;
   onReset: () => void;
+  onScreenshot: () => Promise<boolean>;
   onSetSeason: (s: SeasonFilter) => void;
   onSwitchAccreditation: (acc: Accreditation) => void;
   onSwitchProgram: (p: string) => void;
@@ -364,6 +420,8 @@ const SimulatorToolbar = (props: SimulatorToolbarProps) => {
         >
           Ресетирај
         </button>
+
+        <ScreenshotButton onCapture={props.onScreenshot} />
       </div>
     </div>
   );
@@ -396,13 +454,17 @@ type SimulatorTableProps = {
   onTogglePassed: (name: string) => void;
   overLimitSet: Set<string>;
   reasonMap: Record<string, string>;
+  ref?: (el: HTMLDivElement) => void;
   seasonFilter: SeasonFilter;
   showOnlyEnabled: boolean;
   statuses: Record<string, CourseStatus>;
 };
 
 const SimulatorTable = (props: SimulatorTableProps) => (
-  <div class="rounded-md border">
+  <div
+    class="rounded-md border"
+    ref={props.ref}
+  >
     <Table>
       <TableHeader>
         <TableRow>
@@ -511,7 +573,17 @@ const useSimulatorCourses = (
     return map;
   });
 
-  return { courseInfoMap, parsedCourses };
+  const electiveCourses = createMemo(() => {
+    const set = new Set<string>();
+    for (const c of parsedCourses()) {
+      if (c.programState && !c.programState.includes(REQUIRED_MARKER)) {
+        set.add(c.name);
+      }
+    }
+    return set;
+  });
+
+  return { courseInfoMap, electiveCourses, parsedCourses };
 };
 
 type SimulatorEffectsParams = {
@@ -591,7 +663,7 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     localStorage.getItem(STORAGE_KEY_HPC) === 'true',
   );
 
-  const { courseInfoMap, parsedCourses } = useSimulatorCourses(
+  const { courseInfoMap, electiveCourses, parsedCourses } = useSimulatorCourses(
     () => props.courses,
     accreditation,
     program,
@@ -632,16 +704,6 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
   const overLimitSet = createMemo(() => overLimitInfo().names);
   const overLimitLevels = createMemo(() => overLimitInfo().levels);
   const fullLevels = createMemo(() => overLimitInfo().fullLevels);
-
-  const electiveCourses = createMemo(() => {
-    const set = new Set<string>();
-    for (const c of parsedCourses()) {
-      if (c.programState && !c.programState.includes(REQUIRED_MARKER)) {
-        set.add(c.name);
-      }
-    }
-    return set;
-  });
 
   const enabledMap = createMemo(() =>
     computeEnabledMap({
@@ -711,6 +773,8 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
     setHpcCompleted(false);
   };
 
+  let tableRef: HTMLDivElement | undefined;
+
   return (
     <div class="space-y-4">
       <p class="text-muted-foreground text-sm">
@@ -722,6 +786,9 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
         accreditation={accreditation()}
         hpcCompleted={hpcCompleted()}
         onReset={resetStatuses}
+        onScreenshot={() =>
+          tableRef ? captureTableToClipboard(tableRef) : Promise.resolve(false)
+        }
         onSetSeason={setSeasonFilter}
         onSwitchAccreditation={switchAccreditation}
         onSwitchProgram={setProgram}
@@ -751,6 +818,9 @@ export const EnrollmentSimulator = (props: EnrollmentSimulatorProps) => {
         onTogglePassed={togglePassed}
         overLimitSet={overLimitSet()}
         reasonMap={reasonMap()}
+        ref={(el) => {
+          tableRef = el;
+        }}
         seasonFilter={seasonFilter()}
         showOnlyEnabled={showOnlyEnabled()}
         statuses={statuses()}

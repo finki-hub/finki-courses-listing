@@ -265,6 +265,29 @@ export const computeReasonMap = (config: {
   return reasons;
 };
 
+export const captureTableToClipboard = async (
+  element: HTMLElement,
+): Promise<boolean> => {
+  const { toBlob } = await import('html-to-image');
+  try {
+    const blob = await toBlob(element, {
+      backgroundColor:
+        getComputedStyle(document.documentElement)
+          .getPropertyValue('--background')
+          .trim() ||
+        (document.documentElement.classList.contains('dark')
+          ? '#09090b'
+          : '#ffffff'),
+      pixelRatio: 2,
+    });
+    if (!blob) return false;
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const computeOverLimitInfo = (
   courses: SimulatorCourse[],
   s: Record<string, CourseStatus>,
