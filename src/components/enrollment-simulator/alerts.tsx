@@ -8,7 +8,7 @@ type CreditLimitWarningProps = {
 export const CreditLimitWarning = (props: CreditLimitWarningProps) => (
   <Show when={props.levels.length > 0}>
     <div class="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-      ⚠ Надминати се макс. дозволените освоени кредити за{' '}
+      ⛔ Надминати се макс. дозволените освоени кредити за{' '}
       {props.levels
         .map(
           (lvl) => `L${String(lvl)} (${String(props.levelLimits[lvl] ?? 0)})`,
