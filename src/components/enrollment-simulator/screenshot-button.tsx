@@ -39,11 +39,11 @@ export const ScreenshotButton = (props: {
       onClick={() => {
         void handle();
       }}
-      title="Копирај слика од табелата во clipboard"
+      title="Генерирај слика од табелата"
       type="button"
     >
       <Show
-        fallback="📷 Слика"
+        fallback="📷 Сликај"
         when={state() !== 'idle'}
       >
         <Show when={state() === 'capturing'}>
